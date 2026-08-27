@@ -32,7 +32,15 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) locally, or the production app at [https://sai-nitya-academy.vercel.app](https://sai-nitya-academy.vercel.app).
 
-## First-run demo
+In **Authentication → URL Configuration** set:
+
+- Site URL: `https://sai-nitya-academy.vercel.app`
+- Redirect URLs:
+  - `https://sai-nitya-academy.vercel.app/auth/callback`
+  - `http://127.0.0.1:3000/auth/callback`
+  - `http://localhost:3000/auth/callback`
+
+Signup confirmation emails use `emailRedirectTo` on the current origin (`/auth/callback`), so production links no longer send you to localhost.
 
 ## First-run demo
 

@@ -35,6 +35,7 @@ export function AuthForm(props: { mode: "login" | "signup" }) {
           password,
           options: {
             data: { role, display_name: displayName },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
         if (signUpError) throw signUpError;
@@ -137,6 +138,11 @@ export function AuthForm(props: { mode: "login" | "signup" }) {
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {searchParams.get("error") === "confirm" && !error ? (
+        <p className="text-sm text-destructive">
+          Email confirmation failed. Open the latest email or sign in if the account is already confirmed.
+        </p>
+      ) : null}
       {info ? <p className="text-sm text-teal-700">{info}</p> : null}
 
       <Button type="submit" className="h-10 w-full" disabled={pending}>
