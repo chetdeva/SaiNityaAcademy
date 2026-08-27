@@ -1,71 +1,50 @@
 "use client";
 
+import { ActionLoader, Spinner } from "@/components/action-loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ACADEMY_NAME } from "@/lib/constants";
-import { createClient } from "@/lib/supabase/client";
+import { signInAction, signUpAction } from "@/lib/auth-actions";
 import type { UserRole } from "@/lib/types";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useState, useTransition } from "react";
 
 export function AuthForm(props: { mode: "login" | "signup" }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<UserRole>("student");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [pending, startTransition] = useTransition();
 
-  async function onSubmit(event: React.FormEvent) {
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true);
+    const formData = new FormData(event.currentTarget);
     setError(null);
     setInfo(null);
 
-    try {
-      const supabase = createClient();
-      if (props.mode === "signup") {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { role, display_name: displayName },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
-        });
-        if (signUpError) throw signUpError;
-        if (!data.session) {
-          setInfo("Check your email to confirm the account, then sign in.");
-          return;
-        }
-        router.replace(role === "teacher" ? "/teacher" : "/student");
-        router.refresh();
+    startTransition(async () => {
+      const result =
+        props.mode === "signup" ? await signUpAction(formData) : await signInAction(formData);
+      if (result?.error) {
+        setError(result.error);
         return;
       }
-
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (signInError) throw signInError;
-      const next = searchParams.get("next");
-      const signedRole = (data.user?.user_metadata?.role as UserRole | undefined) ?? "student";
-      router.replace(next || (signedRole === "teacher" ? "/teacher" : "/student"));
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setPending(false);
-    }
+      if (result && "needsConfirm" in result && result.needsConfirm) {
+        setInfo("Check your email to confirm the account, then sign in.");
+      }
+    });
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      <ActionLoader
+        show={pending}
+        label={props.mode === "login" ? "Signing you in…" : "Creating your account…"}
+      />
+      <input type="hidden" name="next" value={searchParams.get("next") ?? ""} />
+      <input type="hidden" name="role" value={role} />
       <div>
         <p className="text-sm font-semibold tracking-wide text-teal-700 uppercase">
           {ACADEMY_NAME}
@@ -84,12 +63,7 @@ export function AuthForm(props: { mode: "login" | "signup" }) {
         <>
           <div className="space-y-1.5">
             <Label htmlFor="name">Full name</Label>
-            <Input
-              id="name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              required
-            />
+            <Input id="name" name="displayName" required disabled={pending} />
           </div>
           <div className="space-y-1.5">
             <Label>I am a</Label>
@@ -98,6 +72,7 @@ export function AuthForm(props: { mode: "login" | "signup" }) {
                 <button
                   key={option}
                   type="button"
+                  disabled={pending}
                   onClick={() => setRole(option)}
                   className={`rounded-xl border px-3 py-2 text-sm font-medium capitalize ${
                     role === option
@@ -117,23 +92,23 @@ export function AuthForm(props: { mode: "login" | "signup" }) {
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
+          name="email"
           type="email"
           autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
           required
+          disabled={pending}
         />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">Password</Label>
         <Input
           id="password"
+          name="password"
           type="password"
           autoComplete={props.mode === "login" ? "current-password" : "new-password"}
           minLength={6}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           required
+          disabled={pending}
         />
       </div>
 
@@ -146,6 +121,7 @@ export function AuthForm(props: { mode: "login" | "signup" }) {
       {info ? <p className="text-sm text-teal-700">{info}</p> : null}
 
       <Button type="submit" className="h-10 w-full" disabled={pending}>
+        {pending ? <Spinner /> : null}
         {pending ? "Please wait…" : props.mode === "login" ? "Sign in" : "Sign up"}
       </Button>
 
