@@ -1,25 +1,25 @@
 "use client";
 
+import { ActionLoader, Spinner } from "@/components/action-loader";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { signOutAction } from "@/lib/auth-actions";
+import { useTransition } from "react";
 
 export function SignOutButton() {
-  const router = useRouter();
-  const [pending, setPending] = useState(false);
-
-  async function signOut() {
-    setPending(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.replace("/login");
-    router.refresh();
-  }
+  const [pending, startTransition] = useTransition();
 
   return (
-    <Button variant="outline" size="sm" onClick={signOut} disabled={pending}>
-      Sign out
-    </Button>
+    <>
+      <ActionLoader show={pending} label="Signing out…" />
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={pending}
+        onClick={() => startTransition(() => signOutAction())}
+      >
+        {pending ? <Spinner /> : null}
+        Sign out
+      </Button>
+    </>
   );
 }

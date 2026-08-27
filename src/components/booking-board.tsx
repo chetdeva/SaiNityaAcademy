@@ -1,5 +1,6 @@
 "use client";
 
+import { ActionLoader, Spinner } from "@/components/action-loader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SESSION_MINUTES } from "@/lib/constants";
@@ -90,6 +91,7 @@ export function BookingBoard(props: {
 
   return (
     <div className="space-y-6">
+      <ActionLoader show={Boolean(pendingSlot)} label="Updating your schedule…" />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <Card>
@@ -121,9 +123,10 @@ export function BookingBoard(props: {
                       <Button
                         variant="destructive"
                         size="sm"
-                        disabled={pendingSlot === session.id}
+                        disabled={Boolean(pendingSlot)}
                         onClick={() => cancel(session.id)}
                       >
+                        {pendingSlot === session.id ? <Spinner /> : null}
                         Cancel
                       </Button>
                     </div>
@@ -155,18 +158,20 @@ export function BookingBoard(props: {
                     <div className="flex shrink-0 gap-1">
                       <Button
                         size="xs"
-                        disabled={pendingSlot === key}
+                        disabled={Boolean(pendingSlot)}
                         onClick={() => book(teacher, slot.start, slot.end)}
                       >
+                        {pendingSlot === key ? <Spinner className="size-3" /> : null}
                         Book
                       </Button>
                       {replaceId ? (
                         <Button
                           size="xs"
                           variant="outline"
-                          disabled={pendingSlot === key}
+                          disabled={Boolean(pendingSlot)}
                           onClick={() => book(teacher, slot.start, slot.end, replaceId)}
                         >
+                          {pendingSlot === key ? <Spinner className="size-3" /> : null}
                           Move
                         </Button>
                       ) : null}

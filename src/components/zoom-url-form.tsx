@@ -1,5 +1,6 @@
 "use client";
 
+import { ActionLoader, Spinner } from "@/components/action-loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +38,7 @@ export function ZoomUrlForm(props: { initialUrl: string }) {
 
   return (
     <div className="space-y-3">
+      <ActionLoader show={pending} label="Saving Zoom link…" />
       <div className="space-y-1.5">
         <Label htmlFor="zoom">Default Zoom join URL</Label>
         <Input
@@ -44,10 +46,12 @@ export function ZoomUrlForm(props: { initialUrl: string }) {
           placeholder="https://zoom.us/j/..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
+          disabled={pending}
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button onClick={save} disabled={pending} variant="outline">
+        {pending ? <Spinner /> : null}
         {pending ? "Saving…" : "Save Zoom link"}
       </Button>
     </div>

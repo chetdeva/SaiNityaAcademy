@@ -1,5 +1,6 @@
 "use client";
 
+import { ActionLoader, Spinner } from "@/components/action-loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,11 +74,13 @@ export function AvailabilityForm(props: {
 
   return (
     <div className="space-y-4">
+      <ActionLoader show={pending} label="Saving availability…" />
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
         {WEEKDAY_LABELS.map((label, index) => (
           <button
             key={label}
             type="button"
+            disabled={pending}
             onClick={() => toggleDay(index)}
             className={`rounded-lg border px-2 py-2 text-xs font-medium ${
               weekdays.includes(index)
@@ -92,11 +95,11 @@ export function AvailabilityForm(props: {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="start">Window start (IST)</Label>
-          <Input id="start" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          <Input id="start" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} disabled={pending} />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="end">Window end (IST)</Label>
-          <Input id="end" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          <Input id="end" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} disabled={pending} />
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
@@ -104,6 +107,7 @@ export function AvailabilityForm(props: {
       </p>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button onClick={save} disabled={pending}>
+        {pending ? <Spinner /> : null}
         {pending ? "Saving…" : "Save availability"}
       </Button>
     </div>
