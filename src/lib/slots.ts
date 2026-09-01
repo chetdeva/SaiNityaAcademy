@@ -68,6 +68,63 @@ export function generateOpenSlots(options: {
   return slots;
 }
 
+export function istDateKey(value: Date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(value);
+}
+
+export function startOfWeekIst(anchor = new Date()) {
+  const key = istDateKey(anchor);
+  const [year, month, day] = key.split("-").map(Number);
+  const utcNoon = new Date(Date.UTC(year, month - 1, day, 6, 30));
+  const weekday = new Date(`${key}T12:00:00+05:30`).getUTCDay();
+  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
+  utcNoon.setUTCDate(utcNoon.getUTCDate() + mondayOffset);
+  return utcNoon;
+}
+
+export function addIstDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setUTCDate(date.getUTCDate() + days);
+  return next;
+}
+
+export function weekDaysIst(weekStart: Date) {
+  return Array.from({ length: 7 }, (_, i) => addIstDays(weekStart, i));
+}
+
+export function isInIstWeek(value: Date, weekStart: Date) {
+  const keys = new Set(weekDaysIst(weekStart).map(istDateKey));
+  return keys.has(istDateKey(value));
+}
+
+export function formatDayLabel(day: Date) {
+  return new Intl.DateTimeFormat("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Kolkata",
+  }).format(day);
+}
+
+export function formatWeekRange(weekStart: Date) {
+  const weekEnd = addIstDays(weekStart, 6);
+  const fmt = new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Kolkata",
+  });
+  return `${fmt.format(weekStart)} – ${fmt.format(weekEnd)}`;
+}
+
+export function formatSlotTime(start: Date, end: Date) {
+  const time = new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+  });
+  return `${time.format(start)} – ${time.format(end)}`;
+}
+
 export function formatSlotRange(start: Date, end: Date) {
   const date = new Intl.DateTimeFormat("en-IN", {
     weekday: "short",

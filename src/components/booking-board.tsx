@@ -3,10 +3,20 @@
 import { ActionLoader, Spinner } from "@/components/action-loader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SESSION_MINUTES } from "@/lib/constants";
+import { BOOKING_HORIZON_DAYS, SESSION_MINUTES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
-import { formatDateTime, formatSlotRange, generateOpenSlots } from "@/lib/slots";
-import type { ClassSession, Profile, TeacherAvailability } from "@/lib/types";
+import {
+  addIstDays,
+  formatDayLabel,
+  formatSlotTime,
+  formatWeekRange,
+  generateOpenSlots,
+  isInIstWeek,
+  istDateKey,
+  startOfWeekIst,
+  weekDaysIst,
+} from "@/lib/slots";
+import type { ClassSession, Profile, TeacherAvailability, TimeSlot } from "@/lib/types";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -23,33 +33,55 @@ export function BookingBoard(props: {
   const router = useRouter();
   const [pendingSlot, setPendingSlot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  const thisWeek = useMemo(() => startOfWeekIst(), []);
+  const weekStart = useMemo(() => addIstDays(thisWeek, weekOffset * 7), [thisWeek, weekOffset]);
+  const days = useMemo(() => weekDaysIst(weekStart), [weekStart]);
+  const lastBookableWeek = useMemo(
+    () => startOfWeekIst(new Date(Date.now() + BOOKING_HORIZON_DAYS * 24 * 60 * 60 * 1000)),
+    [],
+  );
+  const canGoPrev = weekOffset > 0;
+  const canGoNext = addIstDays(weekStart, 7).getTime() <= lastBookableWeek.getTime();
+  const weekTitle = weekOffset === 0 ? "This week" : formatWeekRange(weekStart);
 
   const mine = props.sessions.filter(
     (session) => session.student_id === props.studentId && session.status === "scheduled",
   );
+  const replaceId = mine[0]?.id;
 
-  const slotsByTeacher = useMemo(() => {
-    return props.teachers.map((teacher) => ({
-      teacher,
-      slots: generateOpenSlots({
+  const calendars = useMemo(() => {
+    return props.teachers.map((teacher) => {
+      const slots = generateOpenSlots({
         teacherId: teacher.id,
         availability: props.availability.filter((row) => row.teacher_id === teacher.id),
         booked: props.sessions,
-      }),
-    }));
-  }, [props.teachers, props.availability, props.sessions]);
+      }).filter((slot) => isInIstWeek(slot.start, weekStart));
 
-  async function book(teacher: Profile, start: Date, end: Date, replaceId?: string) {
+      const booked = props.sessions.filter(
+        (session) =>
+          session.student_id === props.studentId &&
+          session.teacher_id === teacher.id &&
+          session.status === "scheduled" &&
+          isInIstWeek(new Date(session.start_at), weekStart),
+      );
+
+      return { teacher, slots, booked };
+    });
+  }, [props.teachers, props.availability, props.sessions, props.studentId, weekStart]);
+
+  async function book(teacher: Profile, start: Date, end: Date, moveId?: string) {
     const key = `${teacher.id}-${start.toISOString()}`;
     setPendingSlot(key);
     setError(null);
     try {
       const supabase = createClient();
-      if (replaceId) {
+      if (moveId) {
         const { error: cancelError } = await supabase
           .from("class_sessions")
           .update({ status: "cancelled" })
-          .eq("id", replaceId)
+          .eq("id", moveId)
           .eq("student_id", props.studentId);
         if (cancelError) throw cancelError;
       }
@@ -90,99 +122,151 @@ export function BookingBoard(props: {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ActionLoader show={Boolean(pendingSlot)} label="Updating your schedule…" />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Your classes</CardTitle>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>{weekTitle}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Asia/Kolkata · {SESSION_MINUTES}-minute classes
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!canGoPrev}
+              aria-label="Previous week"
+              onClick={() => setWeekOffset((offset) => offset - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!canGoNext}
+              aria-label="Next week"
+              onClick={() => setWeekOffset((offset) => offset + 1)}
+            >
+              Next
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {mine.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No upcoming classes yet. Book a slot below.</p>
+        <CardContent className="space-y-8">
+          {calendars.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No teachers yet. Ask a tutor to sign up.</p>
           ) : (
-            mine
-              .slice()
-              .sort((a, b) => a.start_at.localeCompare(b.start_at))
-              .map((session) => {
-                const teacher = props.teachers.find((row) => row.id === session.teacher_id);
-                return (
-                  <div
-                    key={session.id}
-                    className="flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <p className="font-medium">{teacher?.display_name ?? "Teacher"}</p>
-                      <p className="text-sm text-muted-foreground">{formatDateTime(session.start_at)}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={`/student/class/${session.id}`}>Open</a>
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={Boolean(pendingSlot)}
-                        onClick={() => cancel(session.id)}
-                      >
-                        {pendingSlot === session.id ? <Spinner /> : null}
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
+            calendars.map(({ teacher, slots, booked }) => (
+              <div key={teacher.id} className="space-y-3">
+                {props.teachers.length > 1 ? (
+                  <h2 className="text-sm font-semibold">{teacher.display_name}</h2>
+                ) : null}
+                <WeekGrid
+                  days={days}
+                  slots={slots}
+                  booked={booked}
+                  teacher={teacher}
+                  pendingSlot={pendingSlot}
+                  replaceId={replaceId}
+                  onBook={book}
+                  onCancel={cancel}
+                />
+              </div>
+            ))
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
 
-      {slotsByTeacher.map(({ teacher, slots }) => (
-        <Card key={teacher.id}>
-          <CardHeader>
-            <CardTitle>{teacher.display_name}</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {slots.length} open {SESSION_MINUTES}-minute slots in the next 14 days
-            </p>
-          </CardHeader>
-          <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {slots.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No open slots. Ask the teacher to publish availability.</p>
-            ) : (
-              slots.slice(0, 24).map((slot) => {
-                const key = `${teacher.id}-${slot.start.toISOString()}`;
-                const replaceId = mine[0]?.id;
+function WeekGrid(props: {
+  days: Date[];
+  slots: TimeSlot[];
+  booked: ClassSession[];
+  teacher: Profile;
+  pendingSlot: string | null;
+  replaceId?: string;
+  onBook: (teacher: Profile, start: Date, end: Date, moveId?: string) => void;
+  onCancel: (id: string) => void;
+}) {
+  return (
+    <div className="grid gap-2 md:grid-cols-7">
+      {props.days.map((day) => {
+        const key = istDateKey(day);
+        const open = props.slots.filter((slot) => istDateKey(slot.start) === key);
+        const booked = props.booked.filter((session) => istDateKey(new Date(session.start_at)) === key);
+        const empty = open.length === 0 && booked.length === 0;
+
+        return (
+          <div key={key} className="min-h-36 rounded-xl border bg-white p-2">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">{formatDayLabel(day)}</p>
+            <div className="space-y-2">
+              {empty ? <p className="text-xs text-muted-foreground">No slots</p> : null}
+
+              {booked.map((session) => (
+                <div key={session.id} className="rounded-lg bg-teal-50 px-2 py-1.5 text-xs">
+                  <p className="font-medium">{props.teacher.display_name}</p>
+                  <p className="text-muted-foreground">
+                    {formatSlotTime(new Date(session.start_at), new Date(session.end_at))}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    <Button variant="outline" size="xs" asChild>
+                      <a href={`/student/class/${session.id}`}>Open</a>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="xs"
+                      disabled={Boolean(props.pendingSlot)}
+                      onClick={() => props.onCancel(session.id)}
+                    >
+                      {props.pendingSlot === session.id ? <Spinner className="size-3" /> : null}
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              {open.map((slot) => {
+                const slotKey = `${props.teacher.id}-${slot.start.toISOString()}`;
                 return (
-                  <div key={key} className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2">
-                    <span className="text-sm">{formatSlotRange(slot.start, slot.end)}</span>
-                    <div className="flex shrink-0 gap-1">
+                  <div key={slotKey} className="rounded-lg border px-2 py-1.5">
+                    <p className="text-xs font-medium">{formatSlotTime(slot.start, slot.end)}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
                       <Button
                         size="xs"
-                        disabled={Boolean(pendingSlot)}
-                        onClick={() => book(teacher, slot.start, slot.end)}
+                        disabled={Boolean(props.pendingSlot)}
+                        onClick={() => props.onBook(props.teacher, slot.start, slot.end)}
                       >
-                        {pendingSlot === key ? <Spinner className="size-3" /> : null}
+                        {props.pendingSlot === slotKey ? <Spinner className="size-3" /> : null}
                         Book
                       </Button>
-                      {replaceId ? (
+                      {props.replaceId ? (
                         <Button
                           size="xs"
                           variant="outline"
-                          disabled={Boolean(pendingSlot)}
-                          onClick={() => book(teacher, slot.start, slot.end, replaceId)}
+                          disabled={Boolean(props.pendingSlot)}
+                          onClick={() =>
+                            props.onBook(props.teacher, slot.start, slot.end, props.replaceId)
+                          }
                         >
-                          {pendingSlot === key ? <Spinner className="size-3" /> : null}
+                          {props.pendingSlot === slotKey ? <Spinner className="size-3" /> : null}
                           Move
                         </Button>
                       ) : null}
                     </div>
                   </div>
                 );
-              })
-            )}
-          </CardContent>
-        </Card>
-      ))}
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

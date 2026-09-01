@@ -2,6 +2,7 @@ import { AvailabilityForm } from "@/components/availability-form";
 import { WeekCalendar } from "@/components/week-calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireProfile } from "@/lib/auth";
+import { SESSION_MINUTES } from "@/lib/constants";
 import type { ClassSessionWithNames, TeacherAvailability } from "@/lib/types";
 
 export default async function TeacherSchedulePage() {
@@ -20,7 +21,9 @@ export default async function TeacherSchedulePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Schedule</h1>
-        <p className="text-muted-foreground">Set weekly hours, then students book 50-minute slots.</p>
+        <p className="text-muted-foreground">
+          Set weekly hours, then students book {SESSION_MINUTES}-minute slots.
+        </p>
       </div>
       <Card>
         <CardHeader>

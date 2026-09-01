@@ -1,8 +1,6 @@
 import { BookingBoard } from "@/components/booking-board";
-import { WeekCalendar } from "@/components/week-calendar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireProfile } from "@/lib/auth";
-import type { ClassSession, ClassSessionWithNames, Profile, TeacherAvailability } from "@/lib/types";
+import type { ClassSession, Profile, TeacherAvailability } from "@/lib/types";
 
 export default async function StudentSchedulePage() {
   const { supabase, profile } = await requireProfile("student");
@@ -36,16 +34,8 @@ export default async function StudentSchedulePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Class scheduler</h1>
-        <p className="text-muted-foreground">Book, cancel, or move a class against tutor availability.</p>
+        <p className="text-muted-foreground">Book, cancel, or move a class one week at a time.</p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>This week</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <WeekCalendar sessions={(mySessions ?? []) as ClassSessionWithNames[]} role="student" />
-        </CardContent>
-      </Card>
       <BookingBoard
         studentId={profile.id}
         teachers={(teachers ?? []) as Profile[]}
