@@ -48,7 +48,7 @@ Signup confirmation emails use `emailRedirectTo` on the current origin (`/auth/c
 2. Sign up as a **student** in another browser/profile.
 3. Student: Schedule → Book a slot. Dashboard **Join Class** unlocks 10 minutes before start.
 
-Class length is 50 minutes. Times are **Asia/Kolkata**.
+Class length is 60 minutes. Times are **Asia/Kolkata**.
 
 ## React Native later
 

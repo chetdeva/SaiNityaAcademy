@@ -2,7 +2,7 @@ export const ACADEMY_NAME = "SaiNitya Academy";
 export const ACADEMY_TZ = "Asia/Kolkata";
 export const ACADEMY_TZ_OFFSET = "+05:30";
 
-export const SESSION_MINUTES = 50;
+export const SESSION_MINUTES = 60;
 export const JOIN_WINDOW_MINUTES = 10;
 export const BOOKING_HORIZON_DAYS = 14;
 

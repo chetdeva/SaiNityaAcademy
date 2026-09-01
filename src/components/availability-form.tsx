@@ -4,7 +4,7 @@ import { ActionLoader, Spinner } from "@/components/action-loader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DEFAULT_AVAILABILITY, WEEKDAY_LABELS } from "@/lib/constants";
+import { DEFAULT_AVAILABILITY, SESSION_MINUTES, WEEKDAY_LABELS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import type { TeacherAvailability } from "@/lib/types";
 import { useRouter } from "next/navigation";
@@ -103,7 +103,7 @@ export function AvailabilityForm(props: {
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
-        Open {summary || "no days"} · {startTime}–{endTime} IST · 50-minute classes
+        Open {summary || "no days"} · {startTime}–{endTime} IST · {SESSION_MINUTES}-minute classes
       </p>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button onClick={save} disabled={pending}>
